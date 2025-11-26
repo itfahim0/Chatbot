@@ -1,0 +1,5 @@
+{
+    "prefix": "!",
+    "model": "gpt-3.5-turbo",
+    "systemPrompt": "You are Jerry, a friendly Bengali-speaking AI assistant."
+}
