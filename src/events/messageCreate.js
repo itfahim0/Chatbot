@@ -1,5 +1,5 @@
 const { Events } = require('discord.js');
-const { getChatResponse } = require('../openaiClient');
+const { getChatResponse } = require('../geminiClient');
 
 module.exports = {
     name: Events.MessageCreate,
