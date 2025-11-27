@@ -21,6 +21,7 @@ async function ingestAll() {
             const stats = fs.statSync(filePath);
 
             if (stats.isDirectory()) continue;
+            if (file.startsWith('.')) continue; // Ignore hidden files like .gitkeep
 
             // Check if file is already in knowledge base
             // A simple check by filename. For more robustness, we could use file hash or mtime.
