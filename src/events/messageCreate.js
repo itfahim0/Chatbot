@@ -1,5 +1,6 @@
 const { Events } = require('discord.js');
 const { getChatResponse } = require('../openaiClient');
+const knowledgeBase = require('../services/knowledgeBase');
 
 module.exports = {
     name: Events.MessageCreate,
@@ -14,11 +15,28 @@ module.exports = {
             try {
                 await message.channel.sendTyping();
 
-                // Construct message history (simple version: just the current message)
-                // In a real app, you'd fetch previous messages for context
-                const messages = [
-                    { role: "user", content: message.content.replace(/<@!?[0-9]+>/g, '').trim() }
-                ];
+                const userMessage = message.content.replace(/<@!?[0-9]+>/g, '').trim();
+
+                // Search knowledge base
+                const contextResults = await knowledgeBase.search(userMessage);
+                let contextText = "";
+
+                if (contextResults.length > 0) {
+                    contextText = contextResults.map(r => r.text).join("\n\n");
+                    console.log(`Found ${contextResults.length} relevant context chunks.`);
+                }
+
+                // Construct message history
+                const messages = [];
+
+                if (contextText) {
+                    messages.push({
+                        role: "system",
+                        content: `Context information is below.\n---------------------\n${contextText}\n---------------------\nGiven the context information and not prior knowledge, answer the query.`
+                    });
+                }
+
+                messages.push({ role: "user", content: userMessage });
 
                 const response = await getChatResponse(messages);
 
