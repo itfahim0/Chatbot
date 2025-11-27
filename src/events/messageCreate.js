@@ -56,9 +56,6 @@ module.exports = {
                     if (contextResults.length > 0) {
                         contextText = contextResults.map(r => r.text).join("\n\n");
                         console.log(`Found ${contextResults.length} relevant context chunks.`);
-                        // console.log("Context Preview:", contextText.substring(0, 200)); // Debugging
-                    } else {
-                        console.log("No relevant context found.");
                     }
                 }
 
@@ -83,8 +80,9 @@ module.exports = {
                 // System Prompt Configuration
                 let systemContent = "You are Jerry, a friendly Bengali-speaking AI assistant for the 'Purrfect Universe' community.";
 
-                // --- Smart Mentions Context ---
+                // --- Smart Mentions & Role Context ---
                 if (message.guild) {
+                    // 1. Channel & Role Structure
                     const channels = message.guild.channels.cache
                         .filter(c => c.type === ChannelType.GuildText)
                         .map(c => `${c.name} (ID: ${c.id})`)
@@ -98,6 +96,15 @@ module.exports = {
 
                     systemContent += `\n\nServer Structure:\nChannels: ${channels}\nRoles: ${roles}\n`;
                     systemContent += "To mention a channel, use <#channelID>. To mention a role, use <@&roleID>. Use these IDs when referring to specific channels or roles.\n";
+
+                    // 2. User Role Context
+                    const member = message.member;
+                    if (member) {
+                        const userRoles = member.roles.cache.map(r => r.name).join(', ');
+                        const isAdmin = member.permissions.has('Administrator');
+                        systemContent += `\nUser Context:\nThe user asking this is ${message.author.username}.\nTheir Roles: ${userRoles}\nIs Admin: ${isAdmin}\n`;
+                        systemContent += "Tailor your answer based on their permissions. If they are an Admin, acknowledge their authority.\n";
+                    }
                 }
 
                 // Check for "detailed" request
@@ -107,8 +114,8 @@ module.exports = {
                 if (contextText) {
                     systemContent += `\n\nContext information is below.\n---------------------\n${contextText}\n---------------------\n`;
                     systemContent += "Instructions:\n";
-                    systemContent += "1. Use ONLY the provided context to answer the query. Do not hallucinate or make up facts.\n";
-                    systemContent += "2. If the answer is not in the context, politely say you don't know or don't have that information.\n";
+                    systemContent += "1. STRICTLY use ONLY the provided context to answer the query. Do NOT use outside knowledge about the server.\n";
+                    systemContent += "2. If the answer is not in the context, explicitly say: 'I do not have that information in my documents.'\n";
 
                     if (isDetailed) {
                         systemContent += "3. Provide a comprehensive and detailed answer based on the context.\n";
@@ -119,7 +126,7 @@ module.exports = {
                     systemContent += "4. Answer in the same language as the user (Bengali or English).\n";
                     systemContent += "5. If the user asks for a specific link (e.g. website), provide the URL exactly as shown in the context.\n";
                 } else {
-                    systemContent += "\nI do not have specific context for this query. Answer generally if it's casual chat, but if asked about the server, say I don't have that info right now.";
+                    systemContent += "\nI do not have specific context for this query. Answer generally if it's casual chat. If asked about the server/rules/info and you don't have context, say 'I don't have that info right now'.";
                 }
 
                 if (shouldInterject) {
