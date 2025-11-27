@@ -10,7 +10,26 @@ async function parseFile(filePath) {
     try {
         if (extension === 'pdf') {
             const dataBuffer = fs.readFileSync(filePath);
-            const data = await pdf(dataBuffer);
+
+            // Handle different versions of pdf-parse (v1 export is function, v2 export is object)
+            let pdfParser = pdf;
+            if (typeof pdf !== 'function') {
+                if (typeof pdf.default === 'function') {
+                    pdfParser = pdf.default;
+                } else if (typeof pdf === 'object' && pdf !== null) {
+                    // Some versions might export an object with a parse method or similar
+                    // But typically v1 is function, v2 might be different. 
+                    // If it's an object but not a function, we might be in trouble or it's a different lib structure.
+                    // Let's try to see if it has a default export or if it IS the module.
+                    console.warn('pdf-parse is not a function, checking structure:', Object.keys(pdf));
+                }
+            }
+
+            if (typeof pdfParser !== 'function') {
+                throw new Error(`pdf-parse library is not a function. Type: ${typeof pdfParser}`);
+            }
+
+            const data = await pdfParser(dataBuffer);
             return data.text;
         } else if (extension === 'docx') {
             const result = await mammoth.extractRawText({ path: filePath });
