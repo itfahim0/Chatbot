@@ -16,6 +16,12 @@ module.exports = {
         // Auto-Interjection Logic (5% chance)
         const shouldInterject = !isMentioned && !isDM && Math.random() < 0.05;
 
+        // --- 0. Log Message to Knowledge Base (Channel Memory) ---
+        if (!message.author.bot && !isDM) {
+            // We don't await this to avoid blocking the response
+            knowledgeBase.addChatLog(message).catch(err => console.error("Error logging chat:", err));
+        }
+
         if (isMentioned || isDM || shouldInterject) {
             try {
                 await message.channel.sendTyping();
@@ -53,9 +59,15 @@ module.exports = {
                 // Only search if mentioned or DM, or if interjecting and message is long enough
                 let contextText = "";
                 if (isMentioned || isDM || userMessage.length > 10) {
-                    const contextResults = await knowledgeBase.search(userMessage);
+                    // Pass message.member to check permissions for chat logs
+                    const contextResults = await knowledgeBase.search(userMessage, 5, message.member);
                     if (contextResults.length > 0) {
-                        contextText = contextResults.map(r => r.text).join("\n\n");
+                        contextText = contextResults.map(r => {
+                            if (r.type === 'chat') {
+                                return `[Chat Log] ${r.authorName}: ${r.text}`;
+                            }
+                            return r.text;
+                        }).join("\n\n");
                         console.log(`Found ${contextResults.length} relevant context chunks.`);
                     }
                 }
