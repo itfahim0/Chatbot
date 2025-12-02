@@ -5,6 +5,8 @@ const { getSession, addMessageToSession } = require('../utils/sessionMemory');
 const systemPrompt = require('../systemPrompt');
 const { generateThreadSummary } = require('../services/summaryService');
 const { handleVoiceMessage } = require('../services/voiceService');
+const { getServerContext } = require('../services/serverContext');
+const { ingestGuildHistory } = require('../services/historyIngestion');
 
 module.exports = {
     name: Events.MessageCreate,
@@ -24,13 +26,33 @@ module.exports = {
             knowledgeBase.addChatLog(message).catch(err => console.error("Error logging chat:", err));
         }
 
+        // --- SPECIAL COMMANDS (Natural Language) ---
+        const lowerMessage = message.content.toLowerCase();
+
+        // History Ingestion Trigger (Admin Only)
+        if (lowerMessage.includes('jerry read all history') || lowerMessage.includes('jerry learn everything')) {
+            if (message.member && message.member.permissions.has('Administrator')) {
+                await message.reply("ঠিক আছে বস! আমি পুরো সার্ভারের ইতিহাস পড়া শুরু করছি... এটা কিছুটা সময় নিতে পারে। (Starting full server ingestion...)");
+
+                // Run in background
+                ingestGuildHistory(message.guild).then(count => {
+                    message.channel.send(`✅ পড়া শেষ! আমি মোট ${count} টি মেসেজ পড়েছি এবং মনে রেখেছি।`);
+                }).catch(err => {
+                    console.error(err);
+                    message.channel.send("❌ ইতিহাস পড়ার সময় কিছু সমস্যা হয়েছে।");
+                });
+                return;
+            } else {
+                return message.reply("দুঃখিত, এই কমান্ডটি শুধুমাত্র অ্যাডমিনদের জন্য।");
+            }
+        }
+
         if (isMentioned || isDM || shouldInterject || message.attachments.size > 0) {
             try {
                 await message.channel.sendTyping();
 
                 let userMessage = message.content.replace(/<@!?[0-9]+>/g, '').trim();
                 const userId = message.author.id;
-                const lowerMessage = userMessage.toLowerCase();
 
                 // --- Audio Handling (Service) ---
                 const voiceResponse = await handleVoiceMessage(message);
@@ -81,27 +103,12 @@ module.exports = {
                     return await generateThreadSummary(message);
                 }
 
-                // --- 2.5 Learning Mode (Admin Only) ---
-                if (lowerMessage.startsWith('jerry learn:') || lowerMessage.startsWith('jerry shikho:')) {
-                    if (message.member && message.member.permissions.has('Administrator')) {
-                        const contentToLearn = message.content.replace(/jerry (learn|shikho):/i, '').trim();
-                        if (contentToLearn.length > 10) {
-                            await knowledgeBase.addDocument(contentToLearn, `learned_from_chat_${Date.now()}`);
-                            return message.reply("ধন্যবাদ! আমি এই তথ্যটি শিখে নিয়েছি। (Added to Knowledge Base)");
-                        } else {
-                            return message.reply("তথ্যটি খুব ছোট। দয়া করে বিস্তারিত লিখুন।");
-                        }
-                    } else {
-                        return message.reply("দুঃখিত, আমাকে শেখানোর অনুমতি শুধুমাত্র অ্যাডমিনদের আছে।");
-                    }
-                }
-
                 // --- 3. RAG & Chat Logic ---
 
                 // Search knowledge base (RAG)
                 // Only search if mentioned or DM, or if interjecting and message is long enough
                 let contextText = "";
-                if (isMentioned || isDM || userMessage.length > 10 || voiceResponse) {
+                if (isMentioned || isDM || userMessage.length > 5 || voiceResponse) {
                     // Pass message.member to check permissions for chat logs
                     const contextResults = await knowledgeBase.search(userMessage, 5, message.member);
                     if (contextResults.length > 0) {
@@ -109,7 +116,7 @@ module.exports = {
                             if (r.type === 'chat') {
                                 return `[Chat Log] ${r.authorName}: ${r.text}`;
                             }
-                            return r.text;
+                            return `[Document] ${r.text}`;
                         }).join("\n\n");
                         console.log(`Found ${contextResults.length} relevant context chunks.`);
                     }
@@ -146,9 +153,6 @@ module.exports = {
                             // Filter 2: Exclude the current message itself (to avoid duplication)
                             if (m.id === message.id) return false;
 
-                            // Filter 3: Exclude bot messages (optional, but keeps context cleaner)
-                            // if (m.author.bot) return false; 
-
                             return true;
                         });
 
@@ -168,56 +172,27 @@ module.exports = {
                 // System Prompt Configuration
                 let systemContent = systemPrompt;
 
+                // --- INJECT SERVER CONTEXT ---
+                if (message.guild) {
+                    const serverContext = await getServerContext(message.guild);
+                    systemContent += `\n\n${serverContext}\n`;
+                }
+
                 // Append Immediate Context
                 if (immediateContext) {
                     systemContent += `\n\nRecent Chat History (Today):\n${immediateContext}\n`;
                     systemContent += "Use this history to understand the immediate context of the conversation (who said what just now).\n";
                 }
 
-                // --- Smart Mentions & Role Context ---
-                if (message.guild) {
-                    // 1. Channel & Role Structure
-                    const channels = message.guild.channels.cache
-                        .filter(c => c.type === ChannelType.GuildText)
-                        .map(c => {
-                            let info = `${c.name} (ID: ${c.id})`;
-                            if (c.topic) info += ` - Desc: ${c.topic.substring(0, 50)}...`; // Add channel topic/description
-                            return info;
-                        })
-                        .slice(0, 20) // Limit to avoid token overflow
-                        .join("\n");
-
-                    const roles = message.guild.roles.cache
-                        .map(r => `${r.name} (ID: ${r.id})`)
-                        .slice(0, 20)
-                        .join(", ");
-
-                    systemContent += `\n\nServer Structure:\nChannels:\n${channels}\nRoles: ${roles}\n`;
-                    systemContent += "To mention a channel, use <#channelID>. To mention a role, use <@&roleID>. Use these IDs when referring to specific channels or roles.\n";
-                    systemContent += "Use the 'Desc' (Topic) of channels to explain their purpose if asked.\n";
-
-                    // 2. User Role Context
-                    const member = message.member;
-                    if (member) {
-                        const userRoles = member.roles.cache.map(r => r.name).join(', ');
-                        const isAdmin = member.permissions.has('Administrator');
-                        systemContent += `\nUser Context:\nThe user asking this is ${message.author.username} (ID: ${message.author.id}).\nTheir Roles: ${userRoles}\nIs Admin: ${isAdmin}\n`;
-                        systemContent += "Tailor your answer based on their permissions. If they are an Admin, acknowledge their authority.\n";
-                    }
+                // User Context
+                if (message.member) {
+                    const userRoles = message.member.roles.cache.map(r => r.name).join(', ');
+                    systemContent += `\nUser Context:\nThe user asking this is ${message.author.username} (ID: ${message.author.id}).\nTheir Roles: ${userRoles}\n`;
                 }
 
-                // Check for "detailed" request
-                const detailedKeywords = ['full details', 'bistarito', 'details dao', 'sob kichu'];
-                const isDetailed = detailedKeywords.some(k => lowerMessage.includes(k));
-
                 if (contextText) {
-                    systemContent += `\n\nContext information is below.\n---------------------\n${contextText}\n---------------------\n`;
-                    systemContent += "Instructions:\n";
-                    systemContent += "1. STRICTLY use ONLY the provided context to answer the query. Do NOT use outside knowledge about the server.\n";
-                    systemContent += "2. If the answer is not in the context, explicitly say: 'I do not have that information in my documents.'\n";
-                    systemContent += "3. If the user asks for a specific link (e.g. website), provide the URL exactly as shown in the context.\n";
-                } else {
-                    systemContent += "\nI do not have specific context for this query. Answer generally if it's casual chat. If asked about the server/rules/info and you don't have context, say 'I don't have that info right now'.";
+                    systemContent += `\n\nRELEVANT KNOWLEDGE (RAG):\n---------------------\n${contextText}\n---------------------\n`;
+                    systemContent += "Use the above knowledge to answer if relevant. If not, rely on your general knowledge.\n";
                 }
 
                 if (shouldInterject) {
@@ -289,3 +264,4 @@ module.exports = {
         }
     },
 };
+

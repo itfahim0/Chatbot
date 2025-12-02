@@ -38,7 +38,7 @@ async function getChatResponse(messages, imageUrl = null) {
         const completion = await openai.chat.completions.create({
             messages: finalMessages,
             model: "gpt-4o-mini", // Supports vision
-            max_tokens: 800,
+            max_tokens: 1500,
         });
 
         return completion.choices[0].message.content;
