@@ -51,19 +51,23 @@ async function getChatResponse(messages, imageUrl = null) {
 async function transcribeAudio(audioUrl) {
     try {
         const response = await axios.get(audioUrl, { responseType: 'arraybuffer' });
-        const tempFilePath = path.join(os.tmpdir(), `audio_${Date.now()}.mp3`);
+
+        // Determine extension from URL or default to .mp3
+        const extension = path.extname(audioUrl).split('?')[0] || '.mp3';
+        const tempFilePath = path.join(os.tmpdir(), `audio_${Date.now()}${extension}`);
+
         fs.writeFileSync(tempFilePath, response.data);
 
         const transcription = await openai.audio.transcriptions.create({
             file: fs.createReadStream(tempFilePath),
             model: "whisper-1",
-            language: "bn", // Hint for Bengali, though it auto-detects
+            language: "bn", // Hint for Bengali
         });
 
         fs.unlinkSync(tempFilePath); // Cleanup
         return transcription.text;
     } catch (error) {
-        console.error("Audio Transcription Error:", error);
+        console.error("Audio Transcription Error:", error.response ? error.response.data : error.message);
         return null;
     }
 }
