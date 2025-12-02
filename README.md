@@ -30,11 +30,12 @@
 - **🇧🇩 Bengali-First Core**: Speaks natural, conversational Bangla by default.
 - **🗣️ Voice Message Support**: Transcribes and responds to voice notes in Bangla using OpenAI Whisper.
 - **🧠 RAG Knowledge Base**: "Learns" from your server's documents (PDF, TXT, JSON) to answer specific questions.
+- **📚 Full Server History Ingestion**: Can read and "remember" every message ever sent in your server to provide deep historical context.
+- **🏙️ Automatic Server Context**: Automatically knows about all channels, roles, and admins without manual configuration.
 - **📝 Auto Thread Summary**: Summarizes long conversations into key points and decisions with a simple chat command.
-- **🎭 Frank Persona**: A unique personality that is helpful, respectful, but honest and direct.
-- **🛡️ Smart Moderation**: (Optional) Can be extended to handle basic moderation tasks.
+- **🎭 Frank & Friendly Persona**: A "Best Friend" personality that is helpful, direct, and highly intelligent (ChatGPT style).
+- **👁️ Vision Capabilities**: Can see and analyze images uploaded by users.
 - **🔌 Plugin System**: Modular architecture allowing for easy addition of new capabilities.
-- **📱 Channel Awareness**: Understands the context of the channel it is chatting in.
 
 ---
 
@@ -55,6 +56,8 @@ Jerry/
 │   │   ├── knowledgeBase.js    # RAG engine
 │   │   ├── summaryService.js   # Thread summarization logic
 │   │   ├── voiceService.js     # Audio transcription logic
+│   │   ├── serverContext.js    # Server structure awareness
+│   │   ├── historyIngestion.js # History scraping service
 │   │   └── fileParser.js       # Document parsing
 │   ├── utils/              # Helper utilities
 │   │   └── sessionMemory.js
@@ -184,6 +187,13 @@ For a professional production deployment, use **PM2** to keep your bot running 2
 ### 🎙️ Voice Features
 - **Voice Notes**: Send a voice message in DM or Server. Jerry will listen and reply in text.
 - **Audio Files**: Upload an `.mp3` or `.wav` file for transcription.
+
+### 🧠 Server Knowledge & History
+- **Automatic Context**: Jerry knows your channels, roles, and admins automatically.
+- **Ingest History (Admin Only)**:
+    - Command: **"Jerry read all history"** or **"Jerry learn everything"**
+    - Effect: Jerry will read every message in the server and store it in his brain.
+    - Result: You can ask "What happened last week?" or "What did [User] say about [Topic]?"
 
 ### 📝 Summarization
 - **Trigger**: Type `summary dao`, `give me summary`, or `sar-songkhep`.
