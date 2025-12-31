@@ -11,7 +11,7 @@ const openai = new OpenAI({
 
 async function getChatResponse(messages, imageUrl = null) {
     try {
-        const { webSearch } = require('./services/searchService');
+        const { webSearch, readPage } = require('./services/searchService');
 
         // If an image URL is provided, we need to format the last user message to include the image
         let finalMessages = [...messages];
@@ -55,6 +55,23 @@ async function getChatResponse(messages, imageUrl = null) {
                     },
                 },
             },
+            {
+                type: "function",
+                function: {
+                    name: "read_page",
+                    description: "Read the content of a specific web page url to get details for summarization.",
+                    parameters: {
+                        type: "object",
+                        properties: {
+                            url: {
+                                type: "string",
+                                description: "The URL of the page to read.",
+                            },
+                        },
+                        required: ["url"],
+                    },
+                },
+            },
         ];
 
         // First call to OpenAI
@@ -84,6 +101,18 @@ async function getChatResponse(messages, imageUrl = null) {
                         role: "tool",
                         name: "web_search",
                         content: JSON.stringify(searchResults),
+                    });
+                } else if (toolCall.function.name === 'read_page') {
+                    const args = JSON.parse(toolCall.function.arguments);
+                    console.log(`Reading page: ${args.url}`);
+
+                    const pageContent = await readPage(args.url);
+
+                    finalMessages.push({
+                        tool_call_id: toolCall.id,
+                        role: "tool",
+                        name: "read_page",
+                        content: pageContent,
                     });
                 }
             }
