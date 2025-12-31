@@ -180,12 +180,17 @@ For a professional production deployment, use **PM2** to keep your bot running 2
 ## 📖 Usage Guide
 
 ### 💬 Chatting
-- **Direct Chat**: Mention `@Jerry` or reply to his message.
+- **Direct Chat**: Mention `@Jerry` or just verify your message starts with "Jerry" (e.g., "Jerry kemon aso?").
 - **DM**: Send him a Direct Message.
 - **Language**: He speaks Bangla by default. Ask "Speak in English" to switch.
 
-### 🎙️ Voice Features
+### 🌎 Real-Time Knowledge & Weather
+- **Live Search**: Ask about current news, stock prices, or sports scores. Jerry will search the web for you.
+- **Weather Status**: Check Jerry's status message (Playing/Watching) to see the current temperature and wind speed in major Bangladeshi cities.
+
+### 🎙️ Voice & Multimedia
 - **Voice Notes**: Send a voice message in DM or Server. Jerry will listen and reply in text.
+- **Images**: Upload an image and say "Jerry what is this?". He will describe it.
 - **Audio Files**: Upload an `.mp3` or `.wav` file for transcription.
 
 ### 🧠 Server Knowledge & History

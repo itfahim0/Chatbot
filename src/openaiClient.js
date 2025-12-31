@@ -11,6 +11,8 @@ const openai = new OpenAI({
 
 async function getChatResponse(messages, imageUrl = null) {
     try {
+        const { webSearch } = require('./services/searchService');
+
         // If an image URL is provided, we need to format the last user message to include the image
         let finalMessages = [...messages];
 
@@ -34,14 +36,68 @@ async function getChatResponse(messages, imageUrl = null) {
             }
         }
 
-        // We rely on the caller to provide the system prompt in the messages array
+        // Define tools
+        const tools = [
+            {
+                type: "function",
+                function: {
+                    name: "web_search",
+                    description: "Search the internet for real-time information, news, data, or facts.",
+                    parameters: {
+                        type: "object",
+                        properties: {
+                            query: {
+                                type: "string",
+                                description: "The search query to find information about.",
+                            },
+                        },
+                        required: ["query"],
+                    },
+                },
+            },
+        ];
+
+        // First call to OpenAI
         const completion = await openai.chat.completions.create({
             messages: finalMessages,
-            model: "gpt-4o-mini", // Supports vision
+            model: "gpt-4o-mini",
+            tools: tools,
+            tool_choice: "auto",
             max_tokens: 1500,
         });
 
-        return completion.choices[0].message.content;
+        const responseMessage = completion.choices[0].message;
+
+        // Check if the model wanted to call a tool
+        if (responseMessage.tool_calls) {
+            finalMessages.push(responseMessage); // Add the assistant's request to history
+
+            for (const toolCall of responseMessage.tool_calls) {
+                if (toolCall.function.name === 'web_search') {
+                    const args = JSON.parse(toolCall.function.arguments);
+                    console.log(`Performing web search for: ${args.query}`);
+
+                    const searchResults = await webSearch(args.query);
+
+                    finalMessages.push({
+                        tool_call_id: toolCall.id,
+                        role: "tool",
+                        name: "web_search",
+                        content: JSON.stringify(searchResults),
+                    });
+                }
+            }
+
+            // Second call to OpenAI with tool results
+            const secondResponse = await openai.chat.completions.create({
+                messages: finalMessages,
+                model: "gpt-4o-mini",
+            });
+
+            return secondResponse.choices[0].message.content;
+        }
+
+        return responseMessage.content;
     } catch (error) {
         console.error("OpenAI API Error:", error);
         return "দুঃখিত বন্ধু, আমার মস্তিষ্কে একটু সমস্যা হচ্ছে। পরে আবার চেষ্টা করো!";
