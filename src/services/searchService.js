@@ -9,10 +9,14 @@ const cheerio = require('cheerio');
  */
 async function webSearch(query) {
     try {
+        console.log(`Searching for: ${query}`);
         const response = await axios.get('https://html.duckduckgo.com/html/', {
             params: { q: query },
             headers: {
-                'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36'
+                'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+                'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8',
+                'Accept-Language': 'en-US,en;q=0.5',
+                'Referer': 'https://html.duckduckgo.com/'
             }
         });
 
@@ -35,10 +39,12 @@ async function webSearch(query) {
             }
         });
 
+        console.log(`Found ${results.length} results for: ${query}`);
         return results;
 
     } catch (error) {
         console.error('Web Search Error:', error.message);
+        // Fallback: Return empty array so logic doesn't break
         return [];
     }
 }

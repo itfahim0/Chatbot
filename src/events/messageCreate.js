@@ -13,12 +13,13 @@ module.exports = {
     async execute(message) {
         if (message.author.bot) return;
 
-        // Check if the bot is mentioned or if it's a DM
+        // Check if the bot is mentioned OR if the message starts with "jerry" (case-insensitive) OR if it's a DM
         const isMentioned = message.mentions.users.has(message.client.user.id);
+        const startsWithJerry = message.content.trim().toLowerCase().startsWith('jerry');
         const isDM = !message.guild;
 
-        // Auto-Interjection Logic (5% chance)
-        const shouldInterject = !isMentioned && !isDM && Math.random() < 0.05;
+        // Auto-Interjection Logic (5% chance) - ONLY if not directly addressed
+        const shouldInterject = !isMentioned && !startsWithJerry && !isDM && Math.random() < 0.05;
 
         // --- 0. Log Message to Knowledge Base (Channel Memory) ---
         if (!message.author.bot && !isDM) {
@@ -52,16 +53,26 @@ module.exports = {
                 await message.channel.sendTyping();
 
                 let userMessage = message.content.replace(/<@!?[0-9]+>/g, '').trim();
+                // If triggered by "jerry", remove "jerry" from the start for cleaner processing
+                if (startsWithJerry) {
+                    userMessage = userMessage.replace(/^jerry/i, '').trim();
+                }
+
                 const userId = message.author.id;
 
                 // --- Audio Handling (Service) ---
+                // Trigger audio handling if:
+                // 1. It's an audio attachment
+                // 2. We are treating this as a direct interaction (Mention, 'Jerry', or DM)
+                // Note: We don't want to transcribe random audio in public channels unless asked.
+                // But for now, let's process it if we are already in this block.
                 const voiceResponse = await handleVoiceMessage(message);
                 if (voiceResponse) {
                     userMessage += voiceResponse;
                 }
 
                 // If it was just an attachment with no text and not mentioned, we should still process if it's DM or if we decided to interject (or if it's an audio/image that needs analysis)
-                if (!isMentioned && !isDM && !shouldInterject && message.attachments.size > 0 && !voiceResponse) {
+                if (!isMentioned && !startsWithJerry && !isDM && !shouldInterject && message.attachments.size > 0 && !voiceResponse) {
                     // If it's just an image/file in a public channel without mention, ignore it (unless interject logic triggered)
                     // But if we transcribed audio, we assume they want a reply? Maybe not.
                     // Let's be safe: Only reply to attachments if mentioned, DM, or interject logic.
@@ -75,7 +86,7 @@ module.exports = {
                 }
 
                 // --- 1. Invite Link Logic (Only if explicitly mentioned or DM) ---
-                if (isMentioned || isDM) {
+                if (isMentioned || startsWithJerry || isDM) {
                     const inviteKeywords = ['invite link', 'server link', 'link dao', 'link den', 'invite koro'];
                     if (inviteKeywords.some(keyword => lowerMessage.includes(keyword))) {
                         let invite;
@@ -99,7 +110,7 @@ module.exports = {
 
                 // --- 2. Auto Thread Summary Logic (Service) ---
                 const summaryKeywords = ['summary', 'sar-songkhep', 'summary dao', 'give me summary', 'discussion summary'];
-                if ((isMentioned || isDM) && summaryKeywords.some(k => lowerMessage.includes(k))) {
+                if ((isMentioned || startsWithJerry || isDM) && summaryKeywords.some(k => lowerMessage.includes(k))) {
                     return await generateThreadSummary(message);
                 }
 
@@ -108,7 +119,7 @@ module.exports = {
                 // Search knowledge base (RAG)
                 // Only search if mentioned or DM, or if interjecting and message is long enough
                 let contextText = "";
-                if (isMentioned || isDM || userMessage.length > 5 || voiceResponse) {
+                if (isMentioned || startsWithJerry || isDM || userMessage.length > 5 || voiceResponse) {
                     // Pass message.member to check permissions for chat logs
                     const contextResults = await knowledgeBase.search(userMessage, 5, message.member);
                     if (contextResults.length > 0) {
