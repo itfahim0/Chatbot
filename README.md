@@ -232,3 +232,6 @@ Contributions are welcome! Please follow these steps:
 ## 📄 License
 
 This project is licensed under the **ISC License**.
+
+Copyright (c) 2026 **itfahim**.
+See the [LICENSE](LICENSE) file for details.
