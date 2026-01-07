@@ -56,5 +56,44 @@ module.exports = {
         // Trigger document ingestion
         const { ingestAll } = require('../services/documentIngestion');
         await ingestAll();
+
+        // --- Birthday Checker ---
+        const { getTodaysBirthdays } = require('../services/birthdayService');
+
+        const checkBirthdays = async () => {
+            console.log("Checking for birthdays...");
+            const birthdays = getTodaysBirthdays();
+
+            if (birthdays.length > 0) {
+                // Find a channel to send wishes (e.g., 'announcements', 'general', 'birthdays', or system channel)
+                // We iterate over all guilds the bot is in (since birthday file is currently global/simple)
+                // TODO: Make birthdays guild-specific in future if needed. For now, assume user is in the main guild.
+
+                for (const guild of client.guilds.cache.values()) {
+                    // Try to find a suitable channel
+                    const channel = guild.channels.cache.find(c => c.name.includes('birthday') || c.name.includes('general') || c.name.includes('chat')) || guild.systemChannel;
+
+                    if (channel && channel.isTextBased()) {
+                        for (const userId of birthdays) {
+                            // Check if user is in this guild
+                            try {
+                                const member = await guild.members.fetch(userId);
+                                if (member) {
+                                    channel.send(`🎉 Happy Birthday to our amazing friend, ${member}! 🎂🎈 Hope you have a fantastic day! 🥳`);
+                                }
+                            } catch (e) {
+                                // User probably not in this guild, ignore
+                            }
+                        }
+                    }
+                }
+            }
+        };
+
+        // Run immediately on startup (for testing/safety)
+        checkBirthdays();
+
+        // Run every 12 hours (43200000 ms)
+        setInterval(checkBirthdays, 43200000);
     },
 };
