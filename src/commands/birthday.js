@@ -1,0 +1,46 @@
+const { SlashCommandBuilder } = require('discord.js');
+const { setBirthday, getBirthday } = require('../services/birthdayService');
+
+module.exports = {
+    data: new SlashCommandBuilder()
+        .setName('birthday')
+        .setDescription('Manage birthdays')
+        .addSubcommand(subcommand =>
+            subcommand
+                .setName('set')
+                .setDescription('Set your birthday')
+                .addIntegerOption(option =>
+                    option.setName('day').setDescription('Day of the month (1-31)').setRequired(true))
+                .addIntegerOption(option =>
+                    option.setName('month').setDescription('Month (1-12)').setRequired(true)))
+        .addSubcommand(subcommand =>
+            subcommand
+                .setName('check')
+                .setDescription('Check a user\'s birthday')
+                .addUserOption(option =>
+                    option.setName('user').setDescription('The user to check').setRequired(false))),
+    async execute(interaction) {
+        const subcommand = interaction.options.getSubcommand();
+
+        if (subcommand === 'set') {
+            const day = interaction.options.getInteger('day');
+            const month = interaction.options.getInteger('month');
+
+            if (day < 1 || day > 31 || month < 1 || month > 12) {
+                return interaction.reply({ content: "❌ Invalid date! Please check the day and month.", ephemeral: true });
+            }
+
+            setBirthday(interaction.user.id, day, month);
+            return interaction.reply({ content: `✅ Birthday set to **${day}/${month}**! I'll remember to wish you. 🎉`, ephemeral: true });
+        } else if (subcommand === 'check') {
+            const targetUser = interaction.options.getUser('user') || interaction.user;
+            const birthday = getBirthday(targetUser.id);
+
+            if (birthday) {
+                return interaction.reply(`🎂 **${targetUser.username}**'s birthday is on **${birthday.day}/${birthday.month}**.`);
+            } else {
+                return interaction.reply(`❓ I don't know **${targetUser.username}**'s birthday yet.`);
+            }
+        }
+    },
+};

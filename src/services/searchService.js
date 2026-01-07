@@ -49,4 +49,45 @@ async function webSearch(query) {
     }
 }
 
-module.exports = { webSearch };
+/**
+ * Fetches the content of a web page and returns a clean text summary.
+ * @param {string} url 
+ * @returns {Promise<string>}
+ */
+async function readPage(url) {
+    try {
+        console.log(`Reading page: ${url}`);
+        const response = await axios.get(url, {
+            headers: {
+                'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+            },
+            timeout: 5000 // 5s timeout to prevent hanging
+        });
+
+        const $ = cheerio.load(response.data);
+
+        // Remove script, style, and navigation elements to clean up text
+        $('script, style, nav, footer, header').remove();
+
+        // Extract paragraphs
+        let text = "";
+        $('p').each((i, el) => {
+            text += $(el).text().trim() + "\n\n";
+        });
+
+        // If paragraphs are empty, try body text
+        if (!text.trim()) {
+            text = $('body').text().replace(/\s+/g, ' ').trim();
+        }
+
+        // Truncate to avoid token limits (approx 5000 chars)
+        const truncated = text.substring(0, 5000);
+        return truncated || "Could not extract meaningful text.";
+
+    } catch (error) {
+        console.error(`Error reading page ${url}:`, error.message);
+        return "Failed to read the page content. It might be blocked or unavailable.";
+    }
+}
+
+module.exports = { webSearch, readPage };

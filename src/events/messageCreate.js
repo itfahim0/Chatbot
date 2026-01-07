@@ -58,6 +58,18 @@ module.exports = {
                     userMessage = userMessage.replace(/^jerry/i, '').trim();
                 }
 
+                // --- Handle Replies (Feedback Context) ---
+                if (message.reference && message.reference.messageId) {
+                    try {
+                        const repliedMessage = await message.channel.messages.fetch(message.reference.messageId);
+                        if (repliedMessage) {
+                            userMessage = `[Replying to ${repliedMessage.author.username}: "${repliedMessage.content}"]\n\n${userMessage}`;
+                        }
+                    } catch (err) {
+                        console.error("Failed to fetch replied message:", err);
+                    }
+                }
+
                 const userId = message.author.id;
 
                 // --- Audio Handling (Service) ---

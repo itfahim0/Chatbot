@@ -33,7 +33,9 @@
 - **📚 Full Server History Ingestion**: Can read and "remember" every message ever sent in your server to provide deep historical context.
 - **🏙️ Automatic Server Context**: Automatically knows about all channels, roles, and admins without manual configuration.
 - **📝 Auto Thread Summary**: Summarizes long conversations into key points and decisions with a simple chat command.
-- **🎭 Frank & Friendly Persona**: A "Best Friend" personality that is helpful, direct, and highly intelligent (ChatGPT style).
+- **🎭 Frank & Meta AI Persona**: Modeled after Meta AI — concise, direct, polished, and highly intelligent. Adapts to your tone (casual vs. professional).
+- **🎉 Birthday System**: Automatically wishes members on their birthday. (Set via `/birthday` command).
+- **🗣️ Direct Mentions & Feedback**: Understands reply contexts (corrections/feedback) and can explicitly tag users/roles when asked.
 - **👁️ Vision Capabilities**: Can see and analyze images uploaded by users.
 - **🔌 Plugin System**: Modular architecture allowing for easy addition of new capabilities.
 
@@ -209,6 +211,11 @@ For a professional production deployment, use **PM2** to keep your bot running 2
 - **Example**: `Jerry learn: Our weekly meeting is on Sundays at 8 PM.`
 - **Result**: Jerry saves this to his knowledge base and will answer future questions about it.
 
+### 🎂 Birthday Management
+- **Set Birthday**: `/birthday set day: [DD] month: [MM]`
+- **Check Birthday**: `/birthday check user: [@User]`
+- **Wishes**: Jerry checks for birthdays every 12 hours and sends a warm wish in the main chat.
+
 ---
 
 ## 🤝 Contributing
@@ -225,3 +232,6 @@ Contributions are welcome! Please follow these steps:
 ## 📄 License
 
 This project is licensed under the **ISC License**.
+
+Copyright (c) 2026 **itfahim**.
+See the [LICENSE](LICENSE) file for details.
